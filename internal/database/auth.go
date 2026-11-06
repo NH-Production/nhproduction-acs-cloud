@@ -34,12 +34,15 @@ func (s *Store) UserCanAccessTenant(ctx context.Context, userID, tenantID uint64
 	var allowed bool
 	err := s.db.QueryRowContext(ctx, `
 		SELECT EXISTS(
-			SELECT 1 FROM user_roles ur
+			SELECT 1
+			FROM tenants t
+			JOIN user_roles ur ON ur.user_id = ?
 			JOIN roles r ON r.id = ur.role_id
-			WHERE ur.user_id = ?
-			  AND (ur.tenant_id = ? OR ur.tenant_id IS NULL)
-			  AND (r.tenant_id = ? OR r.tenant_id IS NULL)
-		)`, userID, tenantID, tenantID).Scan(&allowed)
+			WHERE t.id = ?
+			  AND t.status = 'active'
+			  AND (ur.tenant_id = t.id OR ur.tenant_id IS NULL)
+			  AND (r.tenant_id = t.id OR r.tenant_id IS NULL)
+		)`, userID, tenantID).Scan(&allowed)
 	return allowed, err
 }
 
@@ -62,9 +65,19 @@ func (s *Store) ResolveSession(ctx context.Context, tokenHash string) (SessionUs
 		  AND s.expires_at > UTC_TIMESTAMP(3)
 		  AND u.status = 'active'
 		  AND t.status = 'active'
+		  AND EXISTS (
+			SELECT 1
+			FROM user_roles ur
+			JOIN roles r ON r.id = ur.role_id
+			WHERE ur.user_id = u.id
+			  AND (ur.tenant_id = s.tenant_id OR ur.tenant_id IS NULL)
+			  AND (r.tenant_id = s.tenant_id OR r.tenant_id IS NULL)
+		  )
 		LIMIT 1`, tokenHash).Scan(&user.ID, &user.Email, &user.TenantID)
 	if err != nil { return SessionUser{}, err }
-	_, _ = s.db.ExecContext(ctx, "UPDATE user_sessions SET last_seen_at = UTC_TIMESTAMP(3) WHERE token_hash = ?", tokenHash)
+	if _, err := s.db.ExecContext(ctx, "UPDATE user_sessions SET last_seen_at = UTC_TIMESTAMP(3) WHERE token_hash = ?", tokenHash); err != nil {
+		return SessionUser{}, err
+	}
 	return user, nil
 }
 
