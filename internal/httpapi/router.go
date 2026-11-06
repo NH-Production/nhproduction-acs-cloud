@@ -27,7 +27,7 @@ func NewRouterWithConfig(store *database.Store, secureCookies bool) http.Handler
 	})
 	if store != nil {
 		mux.HandleFunc("POST /api/v1/auth/login", loginHandler(store, secureCookies))
-		mux.HandleFunc("POST /api/v1/auth/logout", logoutHandler(store))
+		mux.HandleFunc("POST /api/v1/auth/logout", logoutHandler(store, secureCookies))
 		mux.Handle("GET /api/v1/auth/me", sessionMiddleware(store, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			principal, _ := platformauth.FromContext(r.Context())
 			writeJSON(w, http.StatusOK, map[string]any{"user_id":principal.UserID,"email":principal.Email,"tenant_id":principal.TenantID})
