@@ -35,6 +35,8 @@ jobs:
             scripts/install-staging.sh
             scripts/rollback-staging.sh
             deploy/app.env.example
+            database/migrations/001_initial_schema.sql
+            database/migrations/002_tenant_settings.sql
             deploy/systemd/nhproduction-acs-cloud.service
           )
           for file in "${files[@]}"; do
@@ -42,3 +44,10 @@ jobs:
           done
       - name: Check shell syntax
         run: bash -n scripts/*.sh
+      - name: Check SQL baseline markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'CREATE TABLE IF NOT EXISTS tenants' database/migrations/001_initial_schema.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS devices' database/migrations/001_initial_schema.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS tenant_settings' database/migrations/002_tenant_settings.sql
