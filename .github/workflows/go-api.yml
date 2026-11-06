@@ -1,0 +1,26 @@
+name: Go API checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  go-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - name: Resolve and verify pinned modules
+        run: go mod tidy
+      - name: Test with race detector
+        run: go test -race ./...
+      - name: Static analysis
+        run: go vet ./...
