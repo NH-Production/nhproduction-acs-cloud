@@ -16,7 +16,7 @@ func TestSessionMiddlewareRejectsMissingCookie(t *testing.T) {
 }
 
 func TestLogoutWithoutCookieStillClearsSession(t *testing.T) {
-	handler := logoutHandler(nil)
+	handler := logoutHandler(nil, false)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil))
 	if rec.Code != http.StatusOK { t.Fatalf("status = %d, want 200", rec.Code) }
