@@ -32,9 +32,7 @@ func NewRouterWithConfig(store *database.Store, secureCookies bool) http.Handler
 			principal, _ := platformauth.FromContext(r.Context())
 			writeJSON(w, http.StatusOK, map[string]any{"user_id":principal.UserID,"email":principal.Email,"tenant_id":principal.TenantID})
 		})))
-		mux.Handle("GET /api/v1/tenant", sessionMiddleware(store, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			id, _ := tenant.FromContext(r.Context()); writeJSON(w, http.StatusOK, tenantResponse{TenantID:uint64(id)})
-		})))
+		mux.Handle("GET /api/v1/tenant", sessionMiddleware(store, http.HandlerFunc(tenantHandler)))
 	} else {
 		unavailable := func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, http.StatusServiceUnavailable, healthResponse{Status:"database_not_configured"}) }
 		mux.HandleFunc("POST /api/v1/auth/login", unavailable)
@@ -50,4 +48,10 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+
+func tenantHandler(w http.ResponseWriter, r *http.Request) {
+	id, _ := tenant.FromContext(r.Context())
+	writeJSON(w, http.StatusOK, tenantResponse{TenantID: uint64(id)})
 }
