@@ -1,0 +1,37 @@
+name: Documentation checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Verify required documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            README.md
+            docs/SRS.md
+            docs/ARCHITECTURE.md
+            docs/MULTI-TENANT-ISOLATION.md
+            docs/PORT-ALLOCATION.md
+            docs/DATABASE-SCHEMA.md
+            docs/SECURITY.md
+            docs/DEPLOYMENT.md
+            docs/SERVER-AUDIT.md
+            docs/ROADMAP.md
+          )
+          for file in "${files[@]}"; do
+            test -s "$file" || { echo "Missing or empty: $file"; exit 1; }
+          done
+          echo "All required documentation files exist and are non-empty."
