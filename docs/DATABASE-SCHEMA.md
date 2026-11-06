@@ -1,6 +1,12 @@
 # SaaS database schema
 
-MariaDB is the platform database. GenieACS MongoDB remains the separate ACS operational store. PR #1 documents the logical schema; it does not apply migrations to production.
+MariaDB is the platform database. GenieACS MongoDB remains the separate ACS operational store. PR #1 documents the logical schema and includes review-only SQL files under `database/migrations/`. The installer does not apply migrations; do not run these files against production.
+
+## Migration files
+- `database/migrations/001_initial_schema.sql` — initial platform tables.
+- `database/migrations/002_tenant_settings.sql` — tenant-specific settings.
+
+These are a schema baseline, not yet a versioned migration runner. Review table constraints with the Go models and test fresh-install plus restore behavior in a disposable staging database before adoption.
 
 ## Core tables
 | Table | Important columns / purpose |
