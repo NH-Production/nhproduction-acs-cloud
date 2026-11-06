@@ -57,14 +57,14 @@ func sessionMiddleware(store *database.Store, next http.Handler) http.Handler {
 	})
 }
 
-func logoutHandler(store *database.Store) http.HandlerFunc {
+func logoutHandler(store *database.Store, secureCookies bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if cookie, err := r.Cookie(sessionCookieName); err == nil && cookie.Value != "" {
 			if err := store.RevokeSession(r.Context(), platformauth.HashSessionToken(cookie.Value)); err != nil {
 				writeJSON(w, http.StatusInternalServerError, healthResponse{Status:"logout_unavailable"}); return
 			}
 		}
-		http.SetCookie(w, &http.Cookie{Name:sessionCookieName, Value:"", Path:"/", HttpOnly:true, Secure:r.TLS != nil, SameSite:http.SameSiteStrictMode, MaxAge:-1})
+		http.SetCookie(w, &http.Cookie{Name:sessionCookieName, Value:"", Path:"/", HttpOnly:true, Secure:secureCookies, SameSite:http.SameSiteStrictMode, MaxAge:-1})
 		writeJSON(w, http.StatusOK, healthResponse{Status:"logged_out"})
 	}
 }
