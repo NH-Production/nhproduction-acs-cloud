@@ -17,6 +17,11 @@ Multi-tenant ACS management SaaS built around an existing shared GenieACS deploy
 - [Deployment policy](docs/DEPLOYMENT.md) · [Installation guide](docs/INSTALLATION.md)
 - [Read-only server audit](docs/SERVER-AUDIT.md) · [Roadmap](docs/ROADMAP.md)
 
+## Database baseline
+- `database/migrations/001_initial_schema.sql` — initial platform schema (review-only; not applied by installer).
+- `database/migrations/002_tenant_settings.sql` — tenant-scoped settings table (review-only).
+- `deploy/app.env.example` — non-secret staging configuration template.
+
 ## Scripts
 - `bash scripts/preflight.sh` — read-only host inventory.
 - `scripts/install-staging.sh` — staging-only installer for a future pre-built release bundle; requires explicit `--apply`.
