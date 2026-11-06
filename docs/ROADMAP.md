@@ -1,16 +1,19 @@
 # Roadmap
 
-## PR #1 — Foundation & Documentation
-- Product README and approved architecture decisions.
-- SRS, shared-tenant isolation, ingress/subdomain allocation, logical database schema.
+## PR #1 — Foundation, documentation and safe installation scaffolding
+- Product README, approved architecture and SRS.
+- Shared GenieACS tenant isolation, ingress/subdomain allocation and logical database schema.
 - Security, deployment, read-only server audit and roadmap documentation.
-- Documentation CI and review checklist.
-- No runtime code, production configuration or deployment.
+- Read-only preflight script.
+- Staging-only installer and application-code rollback script for a future real release bundle.
+- systemd unit template and environment example.
+- CI documentation and shell syntax checks.
+- No runtime application implementation, production configuration or deployment.
 
 ## PR #2 — Backend foundation
 - Go project structure, configuration validation, health endpoints and structured logging.
-- Unit tests and CI.
-- No GenieACS write operations.
+- Reproducible build producing the documented release bundle.
+- Unit tests and CI; no GenieACS write operations.
 
 ## PR #3 — Identity and tenant foundation
 - Authentication, tenant membership, RBAC and audit trail.
@@ -30,6 +33,6 @@
 - Plans, quotas, invoices, payment records and entitlement enforcement.
 
 ## PR #8 — Performance and release readiness
-- Load tests against a representative staging environment, security review, backup/restore drill and deployment plan.
+- Load tests on representative staging infrastructure, security review, backup/restore drill and deployment plan.
 
 Every PR requires tests and owner review. Merge and production deployment remain blocked until explicit owner approval.
