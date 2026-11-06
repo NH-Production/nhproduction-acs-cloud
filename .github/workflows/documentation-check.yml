@@ -1,4 +1,4 @@
-name: Documentation checks
+name: Foundation checks
 
 on:
   pull_request:
@@ -10,12 +10,12 @@ permissions:
   contents: read
 
 jobs:
-  docs:
+  foundation:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Verify required documentation
+      - name: Verify required files
         shell: bash
         run: |
           set -euo pipefail
@@ -28,10 +28,17 @@ jobs:
             docs/DATABASE-SCHEMA.md
             docs/SECURITY.md
             docs/DEPLOYMENT.md
+            docs/INSTALLATION.md
             docs/SERVER-AUDIT.md
             docs/ROADMAP.md
+            scripts/preflight.sh
+            scripts/install-staging.sh
+            scripts/rollback-staging.sh
+            deploy/app.env.example
+            deploy/systemd/nhproduction-acs-cloud.service
           )
           for file in "${files[@]}"; do
             test -s "$file" || { echo "Missing or empty: $file"; exit 1; }
           done
-          echo "All required documentation files exist and are non-empty."
+      - name: Check shell syntax
+        run: bash -n scripts/*.sh
