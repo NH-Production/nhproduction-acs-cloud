@@ -1,0 +1,53 @@
+name: Foundation checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Verify required files
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            README.md
+            docs/SRS.md
+            docs/ARCHITECTURE.md
+            docs/MULTI-TENANT-ISOLATION.md
+            docs/PORT-ALLOCATION.md
+            docs/DATABASE-SCHEMA.md
+            docs/SECURITY.md
+            docs/DEPLOYMENT.md
+            docs/INSTALLATION.md
+            docs/SERVER-AUDIT.md
+            docs/ROADMAP.md
+            scripts/preflight.sh
+            scripts/install-staging.sh
+            scripts/rollback-staging.sh
+            deploy/app.env.example
+            database/migrations/001_initial_schema.sql
+            database/migrations/002_tenant_settings.sql
+            deploy/systemd/nhproduction-acs-cloud.service
+          )
+          for file in "${files[@]}"; do
+            test -s "$file" || { echo "Missing or empty: $file"; exit 1; }
+          done
+      - name: Check shell syntax
+        run: bash -n scripts/*.sh
+      - name: Check SQL baseline markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'CREATE TABLE IF NOT EXISTS tenants' database/migrations/001_initial_schema.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS devices' database/migrations/001_initial_schema.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS tenant_settings' database/migrations/002_tenant_settings.sql

@@ -1,0 +1,23 @@
+[Unit]
+Description=NHProduction ACS Cloud API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nhacs
+Group=nhacs
+WorkingDirectory=/opt/nhproduction-acs-cloud/current
+EnvironmentFile=/etc/nhproduction-acs-cloud/app.env
+ExecStart=/opt/nhproduction-acs-cloud/current/bin/nhacs-api
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/nhproduction-acs-cloud/shared
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
