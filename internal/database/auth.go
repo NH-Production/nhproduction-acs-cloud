@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
 )
@@ -92,4 +91,3 @@ func (s *Store) HasPermission(ctx context.Context, userID, tenantID uint64, perm
 	return allowed, err
 }
 
-var _ = sql.ErrNoRows
