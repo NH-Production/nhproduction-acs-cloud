@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -29,17 +28,16 @@ func loginHandler(store *database.Store, secureCookies bool) http.HandlerFunc {
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.TenantID == 0 || strings.TrimSpace(input.Email) == "" || input.Password == "" {
 			writeJSON(w, http.StatusBadRequest, healthResponse{Status:"invalid_request"}); return
 		}
-		ctx := r.Context()
-		user, err := store.FindUserCredential(ctx, strings.ToLower(strings.TrimSpace(input.Email)))
+		user, err := store.FindUserCredential(r.Context(), strings.ToLower(strings.TrimSpace(input.Email)))
 		if err != nil || user.Status != "active" || bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)) != nil {
 			writeJSON(w, http.StatusUnauthorized, healthResponse{Status:"invalid_credentials"}); return
 		}
-		allowed, err := store.UserCanAccessTenant(ctx, user.ID, input.TenantID)
+		allowed, err := store.UserCanAccessTenant(r.Context(), user.ID, input.TenantID)
 		if err != nil { writeJSON(w, http.StatusInternalServerError, healthResponse{Status:"authentication_unavailable"}); return }
 		if !allowed { writeJSON(w, http.StatusUnauthorized, healthResponse{Status:"invalid_credentials"}); return }
 		token, tokenHash, expires, err := platformauth.NewSessionToken()
 		if err != nil { writeJSON(w, http.StatusInternalServerError, healthResponse{Status:"session_unavailable"}); return }
-		if err := store.CreateSession(ctx, user.ID, input.TenantID, tokenHash, expires); err != nil {
+		if err := store.CreateSession(r.Context(), user.ID, input.TenantID, tokenHash, expires); err != nil {
 			writeJSON(w, http.StatusInternalServerError, healthResponse{Status:"session_unavailable"}); return
 		}
 		http.SetCookie(w, &http.Cookie{Name:sessionCookieName, Value:token, Path:"/", HttpOnly:true, Secure:secureCookies, SameSite:http.SameSiteStrictMode, Expires:expires, MaxAge:int(time.Until(expires).Seconds())})
@@ -51,10 +49,10 @@ func sessionMiddleware(store *database.Store, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie(sessionCookieName)
 		if err != nil || cookie.Value == "" { writeJSON(w, http.StatusUnauthorized, healthResponse{Status:"authentication_required"}); return }
-		principal, err := store.ResolveSession(r.Context(), platformauth.HashSessionToken(cookie.Value))
+		session, err := store.ResolveSession(r.Context(), platformauth.HashSessionToken(cookie.Value))
 		if err != nil { writeJSON(w, http.StatusUnauthorized, healthResponse{Status:"authentication_required"}); return }
-		ctx := platformauth.WithPrincipal(r.Context(), platformauth.Principal{UserID:principal.ID, Email:principal.Email, TenantID:principal.TenantID})
-		ctx = tenant.WithID(ctx, tenant.ID(principal.TenantID))
+		ctx := platformauth.WithPrincipal(r.Context(), platformauth.Principal{UserID:session.ID, Email:session.Email, TenantID:session.TenantID})
+		ctx = tenant.WithID(ctx, tenant.ID(session.TenantID))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -72,14 +70,12 @@ func logoutHandler(store *database.Store) http.HandlerFunc {
 }
 
 func permissionMiddleware(store *database.Store, permission string, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return sessionMiddleware(store, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := platformauth.FromContext(r.Context())
 		if !ok { writeJSON(w, http.StatusUnauthorized, healthResponse{Status:"authentication_required"}); return }
 		allowed, err := store.HasPermission(r.Context(), principal.UserID, principal.TenantID, permission)
 		if err != nil { writeJSON(w, http.StatusInternalServerError, healthResponse{Status:"authorization_unavailable"}); return }
 		if !allowed { writeJSON(w, http.StatusForbidden, healthResponse{Status:"permission_denied"}); return }
 		next.ServeHTTP(w, r)
-	})
+	}))
 }
-
-var _ = errors.Is
