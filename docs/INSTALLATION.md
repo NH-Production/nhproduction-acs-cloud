@@ -50,7 +50,10 @@ sudo systemctl status nhproduction-acs-cloud --no-pager
 journalctl -u nhproduction-acs-cloud -n 100 --no-pager
 ```
 
-## 4. Roll back application code on staging
+## 4. Database baseline (manual staging review only)
+The schema reference is in `database/migrations/001_initial_schema.sql` and `002_tenant_settings.sql`. These files are not executed by the installer. Do not apply them to the existing GenieACS MongoDB database or any production MariaDB database. First create a dedicated disposable staging database, take a backup, validate MariaDB compatibility, test both migration files, and perform a restore drill. A migration runner and automated rollback strategy will be implemented with the backend.
+
+## 5. Roll back application code on staging
 List available releases:
 ```bash
 ls -1 /opt/nhproduction-acs-cloud/releases/
@@ -61,5 +64,5 @@ sudo bash scripts/rollback-staging.sh --to 0.1.0-rc1 --apply
 ```
 This switches application code only. It does not reverse database migrations.
 
-## 5. Existing production VPS
+## 6. Existing production VPS
 Do not run the installer on the current GenieACS VPS as part of PR #1. First complete and review the fresh server audit, verify backups and capacity, and test on an isolated staging host. No script in this repository is automatically executed by CI.
