@@ -7,13 +7,16 @@ import (
 	"time"
 
 	"github.com/NH-Production/nhproduction-acs-cloud/internal/database"
+	platformauth "github.com/NH-Production/nhproduction-acs-cloud/internal/platform/auth"
 	"github.com/NH-Production/nhproduction-acs-cloud/internal/platform/tenant"
 )
 
 type healthResponse struct { Status string `json:"status"` }
 type tenantResponse struct { TenantID uint64 `json:"tenant_id"` }
 
-func NewRouter(store *database.Store) http.Handler {
+func NewRouter(store *database.Store) http.Handler { return NewRouterWithConfig(store, false) }
+
+func NewRouterWithConfig(store *database.Store, secureCookies bool) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, http.StatusOK, healthResponse{Status:"ok"}) })
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
@@ -22,17 +25,22 @@ func NewRouter(store *database.Store) http.Handler {
 		if err := store.PingContext(ctx); err != nil { writeJSON(w, http.StatusServiceUnavailable, healthResponse{Status:"database_unavailable"}); return }
 		writeJSON(w, http.StatusOK, healthResponse{Status:"ready"})
 	})
-	mux.Handle("GET /api/v1/tenant", requireTenant(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id, _ := tenant.FromContext(r.Context()); writeJSON(w, http.StatusOK, tenantResponse{TenantID:uint64(id)})
-	})))
+	if store != nil {
+		mux.HandleFunc("POST /api/v1/auth/login", loginHandler(store, secureCookies))
+		mux.HandleFunc("POST /api/v1/auth/logout", logoutHandler(store, secureCookies))
+		mux.Handle("GET /api/v1/auth/me", sessionMiddleware(store, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			principal, _ := platformauth.FromContext(r.Context())
+			writeJSON(w, http.StatusOK, map[string]any{"user_id":principal.UserID,"email":principal.Email,"tenant_id":principal.TenantID})
+		})))
+		mux.Handle("GET /api/v1/tenant", sessionMiddleware(store, http.HandlerFunc(tenantHandler)))
+	} else {
+		unavailable := func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, http.StatusServiceUnavailable, healthResponse{Status:"database_not_configured"}) }
+		mux.HandleFunc("POST /api/v1/auth/login", unavailable)
+		mux.HandleFunc("POST /api/v1/auth/logout", unavailable)
+		mux.HandleFunc("GET /api/v1/auth/me", unavailable)
+		mux.HandleFunc("GET /api/v1/tenant", unavailable)
+	}
 	return mux
-}
-
-func requireTenant(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := tenant.FromContext(r.Context()); !ok { writeJSON(w, http.StatusUnauthorized, healthResponse{Status:"authentication_required"}); return }
-		next.ServeHTTP(w, r)
-	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
@@ -40,4 +48,10 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+
+func tenantHandler(w http.ResponseWriter, r *http.Request) {
+	id, _ := tenant.FromContext(r.Context())
+	writeJSON(w, http.StatusOK, tenantResponse{TenantID: uint64(id)})
 }
